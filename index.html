@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mantenimiento de Instalaciones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+  <header class="barra">
+    <div class="contenedor barra__inner">
+      <div>
+        <h1 class="logo">Manteni<span>miento</span></h1>
+        <p class="barra__sub">Incidencias de las instalaciones deportivas</p>
+      </div>
+      <div class="barra__acciones">
+        <span id="ultimaCarga" class="barra__estado">Sin cargar</span>
+        <button id="btnActualizar" class="boton">↻ Actualizar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenedor">
+
+    <section class="resumen" aria-label="Resumen">
+      <div class="dato"><strong id="nTotal">0</strong><span>Total</span></div>
+      <div class="dato dato--pendiente"><strong id="nPendiente">0</strong><span>Pendientes</span></div>
+      <div class="dato dato--curso"><strong id="nCurso">0</strong><span>En curso</span></div>
+      <div class="dato dato--resuelta"><strong id="nResuelta">0</strong><span>Resueltas</span></div>
+      <div class="dato dato--riesgo"><strong id="nRiesgo">0</strong><span>Con riesgo abiertas</span></div>
+    </section>
+
+    <section class="filtros" aria-label="Filtros">
+      <input id="fBuscar" type="search" placeholder="Buscar por descripción, zona, persona…">
+      <select id="fInstalacion"><option value="">Todas las instalaciones</option></select>
+      <select id="fEstado">
+        <option value="abiertas">Abiertas (pendientes y en curso)</option>
+        <option value="">Todos los estados</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="En curso">En curso</option>
+        <option value="Resuelta">Resuelta</option>
+      </select>
+      <select id="fTipo"><option value="">Todos los tipos</option></select>
+      <select id="fUrgencia"><option value="">Todas las urgencias</option></select>
+    </section>
+
+    <div id="aviso" class="aviso" hidden></div>
+
+    <section id="lista" class="lista" aria-live="polite"></section>
+
+    <section class="herramientas">
+      <button id="btnExportar" class="boton boton--sec">⤓ Exportar CSV</button>
+      <button id="btnCopia" class="boton boton--sec">Guardar copia de la gestión</button>
+      <label class="boton boton--sec">
+        Restaurar copia
+        <input id="inCopia" type="file" accept="application/json" hidden>
+      </label>
+      <a class="enlace" href="https://docs.google.com/spreadsheets/d/1V6ALCCKm3q4XfT5vFeVTR8ShHxWkV4_DxZejNhHyDlQ/edit" target="_blank" rel="noopener">Abrir hoja de respuestas ↗</a>
+    </section>
+  </main>
+
+  <dialog id="detalle" class="detalle">
+    <form method="dialog" class="detalle__cerrar"><button aria-label="Cerrar">✕</button></form>
+    <div id="detalleContenido"></div>
+
+    <form id="formGestion" class="gestion">
+      <h3>Gestión</h3>
+      <div class="gestion__fila">
+        <label>Estado
+          <select name="estado">
+            <option>Pendiente</option>
+            <option>En curso</option>
+            <option>Resuelta</option>
+          </select>
+        </label>
+        <label>Responsable
+          <input name="responsable" type="text" placeholder="Quién se encarga">
+        </label>
+        <label>Fecha prevista / resolución
+          <input name="fecha" type="date">
+        </label>
+      </div>
+      <label>Notas de seguimiento
+        <textarea name="notas" rows="4" placeholder="Trabajos realizados, material pedido, presupuesto…"></textarea>
+      </label>
+      <div class="gestion__acciones">
+        <span id="gestionInfo" class="gestion__info"></span>
+        <button type="submit" class="boton">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
