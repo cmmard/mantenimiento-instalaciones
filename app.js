@@ -1,9 +1,12 @@
 // App de gestión del mantenimiento de instalaciones deportivas.
 // Lee las incidencias de la hoja de respuestas del Google Forms "Manteniment"
-// y guarda la gestión (estado, responsable, notas) en este navegador.
+// a través del Apps Script (con contraseña) y guarda la gestión
+// (estado, responsable, notas) en este navegador.
 
-const HOJA_ID = "1V6ALCCKm3q4XfT5vFeVTR8ShHxWkV4_DxZejNhHyDlQ";
+// Misma aplicación web de Apps Script que usa la app de incidencias.
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxn6rjNWgXenYdckn-A8qU3bfoZO3ALz6nmbTxRUdlYSSQ3HgaIUJ51YJsHLHx0gL1IEA/exec";
 const CLAVE_GESTION = "mantenimiento-gestion-v1";
+const CLAVE_ACCESO = "mantenimiento-clave-v1";
 
 // Orden de las columnas del formulario (A–P)
 const COLUMNAS = [
@@ -15,6 +18,7 @@ const COLUMNAS = [
 let incidencias = [];
 let gestion = leerGestion();
 let actualAbierta = null;
+let clave = leerClave();
 
 const $ = (id) => document.getElementById(id);
 
@@ -65,64 +69,111 @@ function guardarGestion() {
   }
 }
 
+function leerClave() {
+  try {
+    return localStorage.getItem(CLAVE_ACCESO) || "";
+  } catch {
+    return "";
+  }
+}
+
+function recordarClave(valor) {
+  try {
+    if (valor) localStorage.setItem(CLAVE_ACCESO, valor);
+    else localStorage.removeItem(CLAVE_ACCESO);
+  } catch { /* sin almacenamiento: se pedirá cada vez */ }
+}
+
 function estadoDe(inc) {
   return gestion[inc.id]?.estado || "Pendiente";
 }
 
-/* ---------- Carga desde Google Sheets ---------- */
+/* ---------- Acceso ---------- */
 
-function cargar() {
+function mostrarAcceso(error = "") {
+  $("panel").hidden = true;
+  $("acceso").hidden = false;
+  $("accesoError").textContent = error;
+  $("accesoError").hidden = !error;
+  $("ultimaCarga").textContent = "Sin cargar";
+  $("btnActualizar").hidden = true;
+  $("inClave").focus();
+}
+
+function mostrarPanel() {
+  $("acceso").hidden = true;
+  $("panel").hidden = false;
+  $("btnActualizar").hidden = false;
+}
+
+/* ---------- Carga desde Google Sheets (vía Apps Script) ---------- */
+
+async function pedirIncidencias(valorClave) {
+  const control = new AbortController();
+  const espera = setTimeout(() => control.abort(), 30000);
+  try {
+    const respuesta = await fetch(URL_SCRIPT, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ accio: "incidencies", clau: valorClave }),
+      signal: control.signal,
+    });
+    return await respuesta.json();
+  } finally {
+    clearTimeout(espera);
+  }
+}
+
+async function cargar() {
+  if (!clave) {
+    mostrarAcceso();
+    return;
+  }
   const boton = $("btnActualizar");
   boton.disabled = true;
   $("ultimaCarga").textContent = "Cargando…";
 
-  const callback = "gviz_" + Date.now();
-  const script = document.createElement("script");
-  let terminado = false;
-
-  const fin = () => {
-    terminado = true;
-    boton.disabled = false;
-    delete window[callback];
-    script.remove();
-  };
-
-  window[callback] = (respuesta) => {
-    fin();
-    if (respuesta.status !== "ok") {
-      mostrarAviso("La hoja respondió con un error. Comprueba que sigue compartida con «cualquier persona con el enlace».");
+  try {
+    const datos = await pedirIncidencias(clave);
+    if (!datos.ok) {
+      if (datos.error === "clau") {
+        clave = "";
+        recordarClave("");
+        mostrarAcceso("Contraseña incorrecta.");
+      } else if (datos.error === "config") {
+        mostrarPanel();
+        mostrarAviso("El Apps Script no tiene contraseña configurada (falta la propiedad CLAU_PANELL).");
+        $("ultimaCarga").textContent = "Error al cargar";
+      } else {
+        mostrarPanel();
+        mostrarAviso("El Apps Script respondió con un error: " + (datos.missatge || datos.error || "desconocido"));
+        $("ultimaCarga").textContent = "Error al cargar";
+      }
       return;
     }
-    incidencias = convertir(respuesta.table);
+    mostrarPanel();
+    incidencias = convertir(datos.files || []);
     ocultarAviso();
     $("ultimaCarga").textContent = "Actualizado " + new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
     rellenarFiltros();
     pintar();
-  };
-
-  script.onerror = () => {
-    fin();
-    mostrarAviso("No se ha podido conectar con la hoja de Google. Revisa la conexión a internet.");
+  } catch {
+    mostrarPanel();
+    mostrarAviso("No se ha podido conectar con el Apps Script. Revisa la conexión a internet y que la implementación esté actualizada.");
     $("ultimaCarga").textContent = "Error al cargar";
-  };
-
-  setTimeout(() => {
-    if (!terminado) script.onerror();
-  }, 15000);
-
-  script.src = `https://docs.google.com/spreadsheets/d/${HOJA_ID}/gviz/tq?tqx=out:json;responseHandler:${callback}&headers=1&_=${Date.now()}`;
-  document.body.appendChild(script);
+  } finally {
+    boton.disabled = false;
+  }
 }
 
-function convertir(tabla) {
-  return tabla.rows
+function convertir(filas) {
+  return filas
     .map((fila) => {
       const inc = {};
-      COLUMNAS.forEach((clave, i) => {
-        const celda = fila.c[i];
-        inc[clave] = celda ? (celda.f ?? celda.v ?? "") : "";
+      COLUMNAS.forEach((nombre, i) => {
+        inc[nombre] = fila.valors[i] ?? "";
       });
-      const marcaCruda = fila.c[0]?.v;
+      const marcaCruda = fila.marca;
       inc.momento = fechaGviz(marcaCruda);
       inc.id = `${marcaCruda || inc.marca}|${inc.comunica}`.trim();
       inc.nivel = nivelUrgencia(inc.urgencia);
@@ -375,6 +426,28 @@ $("formGestion").addEventListener("submit", (e) => {
   }
   $("detalle").close();
   pintar();
+});
+
+$("formAcceso").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const valor = $("inClave").value;
+  if (!valor) return;
+  const boton = $("btnEntrar");
+  boton.disabled = true;
+  boton.textContent = "Comprobando…";
+  clave = valor;
+  if ($("inRecordar").checked) recordarClave(valor);
+  $("inClave").value = "";
+  await cargar();
+  boton.disabled = false;
+  boton.textContent = "Entrar";
+});
+
+$("btnSalir").addEventListener("click", () => {
+  clave = "";
+  recordarClave("");
+  incidencias = [];
+  mostrarAcceso();
 });
 
 $("btnExportar").addEventListener("click", exportarCSV);

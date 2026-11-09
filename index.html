@@ -24,7 +24,18 @@
     </div>
   </header>
 
-  <main class="contenedor">
+  <section id="acceso" class="contenedor acceso" hidden>
+    <form id="formAcceso" class="acceso__caja">
+      <h2>Acceso al panel</h2>
+      <p>Introduce la contraseña del equipo de mantenimiento.</p>
+      <input id="inClave" type="password" autocomplete="current-password" placeholder="Contraseña" required>
+      <label class="acceso__recordar"><input id="inRecordar" type="checkbox" checked> Recordar en este dispositivo</label>
+      <p id="accesoError" class="acceso__error" role="alert" hidden></p>
+      <button id="btnEntrar" type="submit" class="boton">Entrar</button>
+    </form>
+  </section>
+
+  <main id="panel" class="contenedor" hidden>
 
     <section class="resumen" aria-label="Resumen">
       <div class="dato"><strong id="nTotal">0</strong><span>Total</span></div>
@@ -60,6 +71,7 @@
         <input id="inCopia" type="file" accept="application/json" hidden>
       </label>
       <a class="enlace" href="https://docs.google.com/spreadsheets/d/1V6ALCCKm3q4XfT5vFeVTR8ShHxWkV4_DxZejNhHyDlQ/edit" target="_blank" rel="noopener">Abrir hoja de respuestas ↗</a>
+      <button id="btnSalir" class="boton boton--sec">Cerrar sesión</button>
     </section>
   </main>
 
